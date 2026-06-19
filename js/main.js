@@ -1,34 +1,72 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Mobile Menu Toggle
-    const mobileToggle = document.getElementById('mobile-toggle');
-    const navLinks = document.getElementById('nav-links');
     
-    if (mobileToggle && navLinks) {
-        mobileToggle.addEventListener('click', () => {
-            navLinks.classList.toggle('active');
+    // --- 1. Mouse-Reactive Ambient Glow (Optimized) ---
+    const cards = document.querySelectorAll('.glass-panel, .skill-card, .service-card, .project-card, .testimonial-card, .view-all-card');
+    
+    // Create an observer to only track mouse over visible cards
+    const cardVisibilityObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('glow-active');
+            } else {
+                entry.target.classList.remove('glow-active');
+            }
         });
-    }
+    }, { threshold: 0 });
 
-    // 2. Navbar Scroll Effect & Smooth Scroll
-    const navbar = document.getElementById('navbar');
-    
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 50) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
+    cards.forEach(card => cardVisibilityObserver.observe(card));
+
+    let mouseX = 0, mouseY = 0;
+    let isTicking = false;
+
+    document.body.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+
+        if (!isTicking) {
+            window.requestAnimationFrame(() => {
+                // Only update cards currently in the viewport
+                document.querySelectorAll('.glow-active').forEach(card => {
+                    const rect = card.getBoundingClientRect();
+                    // Check if mouse is actually near the card (e.g. within 500px) to save performance
+                    const distY = Math.abs((rect.top + rect.height/2) - mouseY);
+                    if(distY < window.innerHeight) {
+                        const x = mouseX - rect.left;
+                        const y = mouseY - rect.top;
+                        card.style.setProperty('--mouse-x', `${x}px`);
+                        card.style.setProperty('--mouse-y', `${y}px`);
+                    }
+                });
+                isTicking = false;
+            });
+            isTicking = true;
         }
     });
 
-    // Smooth scroll for anchor links
+    // --- 2. Smooth Scroll & Navbar Blur (Optimized) ---
+    const navbar = document.querySelector('.navbar');
+    let scrollTicking = false;
+    
+    window.addEventListener('scroll', () => {
+        if (!scrollTicking) {
+            window.requestAnimationFrame(() => {
+                if (window.scrollY > 50) {
+                    navbar.classList.add('scrolled');
+                } else {
+                    navbar.classList.remove('scrolled');
+                }
+                scrollTicking = false;
+            });
+            scrollTicking = true;
+        }
+    });
+
+    // Smooth anchor scrolling
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
-            if (navLinks) navLinks.classList.remove('active');
-            
             const targetId = this.getAttribute('href');
             if(targetId === '#') return;
-            
             const targetElement = document.querySelector(targetId);
             if(targetElement) {
                 targetElement.scrollIntoView({
@@ -39,42 +77,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Intersection Observer for Scroll Reveals
-    const revealElements = document.querySelectorAll('.fade-up, .reveal-up, .reveal-left, .reveal-right');
+    // --- 3. Intersection Observer (Staggered Reveals - Optimized) ---
+    const revealElements = document.querySelectorAll('.reveal-up, .fade-up, .reveal-left, .reveal-right');
     
+    const revealOptions = {
+        threshold: 0.1,
+        rootMargin: "0px 0px -50px 0px"
+    };
+
     const revealObserver = new IntersectionObserver((entries, observer) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('is-visible');
-                // We keep observing so they can fade out/in again if desired, 
-                // but usually for premium portfolios they stay revealed.
-                // Let's unobserve for performance.
-                observer.unobserve(entry.target);
+                observer.unobserve(entry.target); // Essential for performance
             }
         });
-    }, {
-        root: null,
-        threshold: 0.15,
-        rootMargin: "0px 0px -50px 0px"
-    });
+    }, revealOptions);
 
     revealElements.forEach(el => revealObserver.observe(el));
 
-    // 4. Simple Parallax for Hero
-    const heroContent = document.querySelector('.hero-content');
-    const heroBgGlow = document.querySelector('.ambient-glow');
+    // --- 4. Mobile Navigation Toggle ---
+    const mobileToggle = document.querySelector('.mobile-toggle');
+    const navLinks = document.querySelector('.nav-links');
     
-    window.addEventListener('scroll', () => {
-        const scrolled = window.scrollY;
-        if(scrolled < window.innerHeight) {
-            if(heroContent) {
-                heroContent.style.transform = `translateY(${scrolled * 0.3}px)`;
-                heroContent.style.opacity = 1 - (scrolled / 700);
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = mobileToggle.querySelector('i');
+            if(navLinks.classList.contains('active')) {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            } else {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
             }
-            // Parallax glow effect
-            if(heroBgGlow) {
-                heroBgGlow.style.transform = `translateY(${scrolled * 0.5}px)`;
-            }
-        }
-    });
+        });
+    }
 });
